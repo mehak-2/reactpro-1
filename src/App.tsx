@@ -13,7 +13,6 @@ const nodeTypes = {
   operand3: Operand3,
   operator: Operator,
 };
-
 const App: React.FC = () => {
   const {
     nodes,
@@ -21,12 +20,14 @@ const App: React.FC = () => {
     removeNode,
     removeEdge,
     addEdge,
+    updateNodePosition,
   } = useStore((store) => ({
     nodes: store.nodes,
     edges: store.edges,
     removeNode: store.removeNode,
     removeEdge: store.removeEdge,
     addEdge: store.addEdge,
+    updateNodePosition: store.updateNodePosition,
   }));
 
   const handleNodeDoubleClick = (event: React.MouseEvent, node: Node) => {
@@ -36,6 +37,15 @@ const App: React.FC = () => {
   const handleEdgeDoubleClick = (event: React.MouseEvent, edge: Edge) => {
     const { source, target } = edge;
     removeEdge(source, target);
+  };
+
+  const handleNodeDragStart = (event: React.MouseEvent, node: Node) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  const handleNodeDragStop = (event: React.MouseEvent, node: Node) => {
+    updateNodePosition(node.id, { x: node.position.x + event.movementX, y: node.position.y + event.movementY });
   };
 
   return (
@@ -57,8 +67,8 @@ const App: React.FC = () => {
           }}
           snapToGrid={true}
           snapGrid={[10, 10]}
-          elementsSelectable={true}
-          elementsDraggable={true}
+          elementsSelectable={true} // Enable node selection
+          elementsDraggable={true}  // Enable node dragging
           paneMoveable={true}
           zoomOnScroll={true}
           zoomOnDoubleClick={true}
@@ -68,6 +78,8 @@ const App: React.FC = () => {
           onLoad={(reactFlowInstance) => reactFlowInstance.fitView()}
           onEdgeDoubleClick={handleEdgeDoubleClick}
           onNodeDoubleClick={handleNodeDoubleClick}
+          onNodeDragStart={handleNodeDragStart}
+          onNodeDragStop={handleNodeDragStop}
         >
           <Background />
           <Controls />
@@ -77,5 +89,6 @@ const App: React.FC = () => {
     </ReactFlowProvider>
   );
 };
+
 
 export default App;

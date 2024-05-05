@@ -1,42 +1,23 @@
 import { create } from 'zustand';
-import { applyEdgeChanges, applyNodeChanges } from "reactflow";
 import { nanoid } from 'nanoid';
 
 const sourceValues = [10, 20, 30];
-
 const subscription = {
   renderFunctions: [
     {
-      functionBody: (nodes) => {
-        const operand1Value = nodes.find((node) => node.id === 'operand1')?.data.value || 0;
-        const operand2Value = nodes.find((node) => node.id === 'operand2')?.data.value || 0;
-        const operand3Value = nodes.find((node) => node.id === 'operand3')?.data.value || 0;
-        return operand1Value - operand2Value - operand3Value;
-      },
+      functionBody: (nodes) => nodes.reduce((acc, node) => acc * (node.id.startsWith('operand') ? node.data.value : 1), 1),
       id: 'OPPONENTSCORE',
-      position: { x: 200, y: 200 },
     },
     {
-      functionBody: (nodes) => {
-        const operand1Value = nodes.find((node) => node.id === 'operand1')?.data.value || 0;
-        const operand2Value = nodes.find((node) => node.id === 'operand2')?.data.value || 0;
-        const operand3Value = nodes.find((node) => node.id === 'operand3')?.data.value || 0;
-        return operand1Value + operand2Value - operand3Value;
-      },
+      functionBody: (nodes) => nodes.reduce((acc, node) => acc + (node.id.startsWith('operand') ? node.data.value : 0), 0),
       id: 'OPPONENTSCORE1',
-      position: { x: 50, y: 200 },
     },
     {
-      functionBody: (nodes) => {
-        const operand1Value = nodes.find((node) => node.id === 'operand1')?.data.value || 0;
-        const operand2Value = nodes.find((node) => node.id === 'operand2')?.data.value || 0;
-        const operand3Value = nodes.find((node) => node.id === 'operand3')?.data.value || 0;
-        return operand1Value - operand2Value + operand3Value;
-      },
+      functionBody: (nodes) => nodes.reduce((acc, node) => acc / (node.id.startsWith('operand') ? node.data.value : 1), 1),
       id: 'OPPONENTSCORE2',
-      position: { x: 300, y: 300 },
     },
   ],
+
   sources: [
     {
       id: 'OPERANDS',
@@ -50,46 +31,41 @@ export const useStore = create((set, get) => {
     {
       id: 'operand1',
       type: 'operand1',
-      data: { value: sourceValues.length > 0 ? sourceValues[0] : 0 },
+      data: { value: sourceValues[0] || 0 },
       position: { x: 50, y: 50 },
-      edges: [],
     },
     {
       id: 'operand2',
       type: 'operand2',
-      data: { value: sourceValues.length > 1 ? sourceValues[1] : 0 },
+      data: { value: sourceValues[1] || 0 },
       position: { x: 200, y: 50 },
-      edges: [],
     },
     {
       id: 'operand3',
       type: 'operand3',
-      data: { value: sourceValues.length > 2 ? sourceValues[2] : 0 },
+      data: { value: sourceValues[2] || 0 },
       position: { x: 320, y: 50 },
-      edges: [],
     },
     {
       id: 'OPPONENTSCORE',
       type: 'operator',
       data: { value: 0 },
       position: { x: 200, y: 200 },
-      edges: [],
     },
     {
       id: 'OPPONENTSCORE1',
       type: 'operator',
       data: { value: 0 },
       position: { x: 50, y: 200 },
-      edges: [],
     },
     {
       id: 'OPPONENTSCORE2',
       type: 'operator',
       data: { value: 0 },
-      position: { x: 300, y: 300 },
-      edges: [],
+      position: { x: 300, y: 200 },
     },
   ];
+
   let edges = [];
 
   const updateNodes = () => {
@@ -100,18 +76,16 @@ export const useStore = create((set, get) => {
 
   const removeEdge = (sourceId, targetId) => {
     set({
-      edges: get().edges.filter(
-        (edge) => !(edge.source === sourceId && edge.target === targetId)
-      ),
+      edges: get().edges.filter((edge) => !(edge.source === sourceId && edge.target === targetId)),
     });
-  
+
     // Recalculate values for all render functions connected to the target node of the removed edge
     const targetNode = get().nodes.find((node) => node.id === targetId);
     if (targetNode) {
       const connectedEdges = get().edges.filter(
         (edge) => edge.source === targetId || edge.target === targetId
       );
-  
+
       if (connectedEdges.length === 0) {
         // If no more edges are connected to the target node, set its value to 0
         const updatedNodes = get().nodes.map((node) =>
@@ -121,10 +95,7 @@ export const useStore = create((set, get) => {
       } else {
         // Recalculate value for render functions connected to the target node
         subscription.renderFunctions
-          .filter(
-            (renderFunction) =>
-              renderFunction.subscribeTo && renderFunction.subscribeTo.includes(targetId)
-          )
+          .filter((renderFunction) => renderFunction.subscribeTo && renderFunction.subscribeTo.includes(targetId))
           .forEach((renderFunction) => {
             const newValue = renderFunction.functionBody(get().nodes);
             const targetNodeIndex = get().nodes.findIndex((node) => node.id === renderFunction.id);
@@ -137,7 +108,7 @@ export const useStore = create((set, get) => {
       }
     }
   };
-  
+
   const removeNode = (id) => {
     set({
       nodes: get().nodes.filter((node) => node.id !== id),
@@ -154,13 +125,13 @@ export const useStore = create((set, get) => {
       }
     });
   };
+
   const updateNodePosition = (id, newPosition) => {
     const updatedNodes = get().nodes.map((node) =>
       node.id === id ? { ...node, position: newPosition } : node
     );
     set({ nodes: updatedNodes });
   };
-
 
   return {
     nodes,
@@ -174,17 +145,18 @@ export const useStore = create((set, get) => {
       const id = nanoid(6);
       const newEdge = { id, ...data };
       set({ edges: [...get().edges, newEdge] });
-      subscription.renderFunctions.forEach((renderFunction) => {
-        if (renderFunction.id === data.target) {
-          const newValue = renderFunction.functionBody(get().nodes);
-          const targetNodeIndex = get().nodes.findIndex((node) => node.id === data.target);
-          if (targetNodeIndex !== -1) {
-            const updatedNodes = [...get().nodes];
-            updatedNodes[targetNodeIndex].data.value = newValue;
-            set({ nodes: updatedNodes });
-          }
+
+      const connectedRenderFunction = subscription.renderFunctions.find((rf) => rf.id === data.target);
+      if (connectedRenderFunction) {
+        const newValue = connectedRenderFunction.functionBody(get().nodes);
+        const targetNodeIndex = get().nodes.findIndex((node) => node.id === connectedRenderFunction.id);
+        if (targetNodeIndex !== -1) {
+          const updatedNodes = [...get().nodes];
+          updatedNodes[targetNodeIndex].data.value = newValue;
+          set({ nodes: updatedNodes });
         }
-      });
+      }
     },
   };
 });
+
